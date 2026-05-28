@@ -2,7 +2,12 @@ import * as React from "react"
 import { DATA } from "./schoolsData"
 
 export default function App() {
+    // 1. Điểm hiện tại (Toán, Văn, Anh)
     const [scores, setScores] = React.useState({ t: "", v: "", a: "" })
+    
+    // NEW: Điểm quá khứ (Cho phép mỗi học sinh tự nhập điểm riêng của mình)
+    const [pastTotals, setPastTotals] = React.useState({ ks: "16.5", gk: "19.0", hk: "21.5" })
+    
     const [search, setSearch] = React.useState("")
     const [active, setActive] = React.useState(null)
 
@@ -60,31 +65,27 @@ export default function App() {
         return { percentage, text: statusText, color: statusColor, delta }
     }
 
-    // DỮ LIỆU ĐỒ THỊ TIẾN ĐỘ THEO THỜI GIAN (PHƯƠNG ÁN 2)
-    // Giả lập lộ trình học tập từ đầu năm, điểm mốc cuối cùng chính là "total" tự động nhảy
+    // DỮ LIỆU ĐỒ THỊ TIẾN ĐỘ ĐÃ ĐƯỢC DÂN CHỦ HÓA (ĐỌC TỪ STATE)
     const progressData = [
-        { label: "Khảo sát", score: 16.5 },
-        { label: "Giữa Kỳ I", score: 19.0 },
-        { label: "Học Kỳ I", score: 21.5 },
-        { label: "Hiện Tại", score: total > 0 ? total : 16.5 }
+        { label: "Khảo sát", score: Number(pastTotals.ks) || 0 },
+        { label: "Giữa Kỳ I", score: Number(pastTotals.gk) || 0 },
+        { label: "Học Kỳ I", score: Number(pastTotals.hk) || 0 },
+        { label: "Hiện Tại", score: total > 0 ? total : (Number(pastTotals.hk) || 16.5) }
     ]
 
-    // Hàm toán học chuyển đổi Điểm số thành Tọa độ Y trên sơ đồ SVG (Giới hạn khung từ điểm 10 đến 30)
+    // Hàm toán học chuyển đổi Điểm số thành Tọa độ Y trên sơ đồ SVG
     const getSvgX = (index) => 55 + index * 95
     const getSvgY = (score) => {
         const chartMinScore = 10
         const chartMaxScore = 30
-        const chartHeight = 110 // Chiều cao thực tế của vùng vẽ đồ thị
-        // Tránh lỗi chia cho 0 hoặc vượt khung
+        const chartHeight = 110
         const safeScore = Math.max(chartMinScore, Math.min(chartMaxScore, score))
         return 130 - ((safeScore - chartMinScore) / (chartMaxScore - chartMinScore)) * chartHeight
     }
 
-    // Lấy thông tin trường đang được chọn làm mục tiêu
     const activeSchool = active !== null ? filtered[active] : null
     const targetScore = activeSchool ? Number(getAvg(activeSchool.v1)) : null
 
-    // Tạo chuỗi đường thẳng lệnh "M x y L x y..." cho SVG Path từ mảng dữ liệu tiến độ
     const linePathD = progressData.map((d, i) => `${i === 0 ? "M" : "L"} ${getSvgX(i)} ${getSvgY(d.score)}`).join(" ")
 
     return (
@@ -93,12 +94,13 @@ export default function App() {
                 <div style={styles.headerArea}>
                     <h2 style={styles.headerTitle}>AI Tư Vấn Tuyển Sinh Động</h2>
                     <p style={styles.headerSubtitle}>
-                        Phân tích rủi ro & Đồ thị theo dõi năng lực học tập
+                        Hệ thống cá nhân hóa lộ trình và phân tích rủi ro biến động
                     </p>
                 </div>
 
-                {/* VÙNG NHẬP ĐIỂM */}
+                {/* VÙNG NHẬP ĐIỂM HIỆN TẠI */}
                 <div style={styles.scoreSection}>
+                    <div style={styles.sectionTitle}>🎯 Nhập điểm thi thử hiện tại:</div>
                     <div style={styles.inputGroup}>
                         {["t", "v", "a"].map((subject, idx) => (
                             <div key={subject} style={styles.inputWrapper}>
@@ -134,7 +136,32 @@ export default function App() {
                     </div>
                 </div>
 
-                {/* PHƯƠNG ÁN 2: ĐỒ THỊ TIẾN ĐỘ ĐĂNG LỰC ĐỘNG (SVG CUSTOM) */}
+                {/* NEW SECTION: VÙNG NHẬP ĐIỂM QUÁ KHỨ (GIÚP TẤT CẢ HỌC SINH ĐỀU DÙNG ĐƯỢC) */}
+                <div style={styles.pastScoreSection}>
+                    <div style={styles.sectionTitle}>🕒 Điều chỉnh tổng điểm các kỳ trước:</div>
+                    <div style={styles.inputGroup}>
+                        {[
+                            { key: "ks", label: "Khảo sát" },
+                            { key: "gk", label: "Giữa Kỳ 1" },
+                            { key: "hk", label: "Học Kỳ 1" }
+                        ].map((item) => (
+                            <div key={item.key} style={styles.inputWrapper}>
+                                <span style={styles.pastInputLabel}>{item.label}</span>
+                                <input
+                                    style={styles.pastInput}
+                                    type="number"
+                                    min="10"
+                                    max="30"
+                                    step="0.5"
+                                    value={pastTotals[item.key]}
+                                    onChange={(e) => setPastTotals({ ...pastTotals, [item.key]: e.target.value })}
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* PHƯƠNG ÁN 2: ĐỒ THỊ TIẾN ĐỘ ĐĂNG LỰC ĐỘNG (BÂY GIỜ ĐÃ ĐỘNG 100%) */}
                 <div style={styles.chartCard}>
                     <div style={styles.chartTitleArea}>
                         <span style={styles.chartTitle}>📈 Biểu Đồ Xu Hướng Năng Lực</span>
@@ -146,7 +173,6 @@ export default function App() {
                     </div>
                     
                     <svg style={styles.svgContainer} width="100%" height="160">
-                        {/* Các đường lưới ngang phụ trợ (Grid lines) */}
                         {[10, 15, 20, 25, 30].map((gridScore) => (
                             <g key={gridScore}>
                                 <line x1="45" y1={getSvgY(gridScore)} x2="350" y2={getSvgY(gridScore)} stroke="#f1f5f9" strokeWidth="1" />
@@ -154,36 +180,23 @@ export default function App() {
                             </g>
                         ))}
 
-                        {/* ĐƯỜNG MỤC TIÊU ĐỘNG (Bật lên khi click chọn trường ở dưới) */}
                         {targetScore && (
                             <g>
-                                <line 
-                                    x1="45" 
-                                    y1={getSvgY(targetScore)} 
-                                    x2="350" 
-                                    y2={getSvgY(targetScore)} 
-                                    stroke="#ef4444" 
-                                    strokeDasharray="4 4" 
-                                    strokeWidth="2" 
-                                />
+                                <line x1="45" y1={getSvgY(targetScore)} x2="350" y2={getSvgY(targetScore)} stroke="#ef4444" strokeDasharray="4 4" strokeWidth="2" />
                                 <circle cx="350" cy={getSvgY(targetScore)} r="3" fill="#ef4444" />
                             </g>
                         )}
 
-                        {/* Đường đồ thị biểu diễn điểm số học sinh */}
                         <path d={linePathD} fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
 
-                        {/* Vẽ các điểm chấm tròn tọa độ (Nodes) */}
                         {progressData.map((d, i) => (
                             <g key={i}>
                                 <circle cx={getSvgX(i)} cy={getSvgY(d.score)} r="5" fill="#ffffff" stroke="#3b82f6" strokeWidth="3" />
-                                {/* Hiển thị điểm số ngay trên đầu nút tròn */}
                                 <text x={getSvgX(i)} y={getSvgY(d.score) - 10} fill="#1e3a8a" fontSize="10" fontWeight="700" textAnchor="middle">
-                                    {d.score.toFixed(2)}
+                                    {d.score.toFixed(1)}
                                 </text>
-                                {/* Nhãn chữ danh mục tháng ở dưới trục X */}
                                 <text x={getSvgX(i)} y="150" fill="#64748b" fontSize="10" fontWeight="600" textAnchor="middle">
-                                    {d.l}
+                                    {d.label}
                                 </text>
                             </g>
                         ))}
@@ -254,7 +267,7 @@ export default function App() {
                                                     <strong>{avg1}đ</strong>
                                                 </div>
                                                 <div style={styles.gridBox}>
-                                                    <span>Độ Dao Động ($\Delta$)</span>
+                                                    <span>Độ Dao Động (Delta)</span>
                                                     <strong style={{ color: analysis.delta > 1.5 ? "#ef4444" : "#10b981" }}>
                                                         ±{analysis.delta.toFixed(2)}
                                                     </strong>
@@ -281,16 +294,22 @@ const styles = {
     headerArea: { padding: "32px 24px 20px", background: "linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)", color: "#ffffff", textAlign: "center" },
     headerTitle: { margin: 0, fontSize: "22px", fontWeight: "800", letterSpacing: "-0.5px" },
     headerSubtitle: { margin: "8px 0 0", fontSize: "13px", opacity: 0.8 },
-    scoreSection: { padding: "24px 24px 12px", backgroundColor: "#ffffff" },
-    inputGroup: { display: "flex", gap: "12px", marginBottom: "16px" },
+    sectionTitle: { fontSize: "13px", fontWeight: "700", color: "#334155", marginBottom: "10px" },
+    scoreSection: { padding: "20px 24px 10px", backgroundColor: "#ffffff" },
+    
+    // STYLE CHO VÙNG ĐIỂM QUÁ KHỨ MỚI
+    pastScoreSection: { padding: "0px 24px 15px", backgroundColor: "#ffffff" },
+    pastInputLabel: { fontSize: "11px", fontWeight: "600", color: "#64748b", textAlign: "center" },
+    pastInput: { width: "100%", padding: "8px", borderRadius: "10px", border: "2px solid #f1f5f9", textAlign: "center", fontSize: "14px", fontWeight: "700", color: "#475569", outline: "none" },
+
+    inputGroup: { display: "flex", gap: "12px" },
     inputWrapper: { flex: 1, display: "flex", flexDirection: "column", gap: "6px" },
     inputLabel: { fontSize: "11px", fontWeight: "700", color: "#64748b", textAlign: "center" },
     input: { width: "100%", padding: "12px", borderRadius: "12px", border: "2px solid #f1f5f9", textAlign: "center", fontSize: "16px", fontWeight: "700", color: "#1e293b", outline: "none" },
-    totalDisplay: { padding: "12px", borderRadius: "16px", background: "#f8fafc", border: "1px dashed #e2e8f0", textAlign: "center" },
+    totalDisplay: { padding: "12px", marginTop: "12px", borderRadius: "16px", background: "#f8fafc", border: "1px dashed #e2e8f0", textAlign: "center" },
     totalLabel: { fontSize: "10px", fontWeight: "800", color: "#94a3b8", letterSpacing: "1px" },
     totalValue: { fontSize: "32px", fontWeight: "900", color: "#1e3a8a" },
     
-    // CSS CHO THẺ BIỂU ĐỒ MỚI
     chartCard: { padding: "16px", margin: "0 24px 20px", backgroundColor: "#ffffff", borderRadius: "20px", border: "1px solid #e2e8f0", boxShadow: "0 4px 6px -1px rgba(0,0,0,0.05)" },
     chartTitleArea: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" },
     chartTitle: { fontSize: "12px", fontWeight: "800", color: "#334155" },
@@ -301,7 +320,7 @@ const styles = {
     searchIcon: { position: "absolute", left: "36px", top: "12px", opacity: 0.4 },
     searchBar: { width: "100%", padding: "12px 12px 12px 40px", borderRadius: "12px", border: "1px solid #e2e8f0", backgroundColor: "#f8fafc", outline: "none", fontSize: "14px" },
     listContainer: { padding: "16px 24px 24px", flex: 1 },
-    scrollArea: { maxHeight: "320px", overflowY: "auto", paddingRight: "4px" },
+    scrollArea: { maxHeight: "260px", overflowY: "auto", paddingRight: "4px" },
     schoolItem: { padding: "16px", borderRadius: "16px", marginBottom: "12px", cursor: "pointer", border: "1px solid #f1f5f9", transition: "all 0.2s" },
     itemMain: { display: "flex", justifyContent: "space-between", alignItems: "center" },
     schoolName: { fontSize: "14px", fontWeight: "700", color: "#1e293b" },
